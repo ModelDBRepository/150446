@@ -1,0 +1,69 @@
+// Model with pyramidal cell having myelinated axon.
+// author: Nikita Vladimirov, PhD <nikita.vladimirov@gmail.com>
+load_file("nrngui.hoc")
+load_file("template_PC_myelinatedAx.hoc")
+load_file("template_IN.hoc")
+
+objref pyr, bask
+objref syn1, syn2, syn3
+objref Ns1, Ns2, netcon, netconL
+pyr = new pyramidalCA1()
+bask = new basket()
+netconL = new List()
+
+forsec pyr.axonal { nseg *= 9 }
+pyr.setcurrentbias_soma(-0.05)
+pyr.setcurrentbias_AIS(-0.02)
+pyr.position(0,0,0)
+bask.position(200,0,0)
+// recording extracellular electrode coordinates, near PC soma:
+Ex = 20
+Ey = 20
+Ez = 0
+
+pyr.shaft syn1 = new AlphaSyn(0.5) // external-> PC dendrite
+syn1.tau = 2
+syn1.e = 0
+
+bask.soma syn2 = new AlphaSyn(0.5) // PC axon (distal collateral) -> basket cell
+syn2.tau = 0.8 
+
+pyr.soma syn3 = new Exp2Syn(0.5) // basket cell -> PC soma
+syn3.tau1 = 2
+syn3.tau2 = 5
+syn3.e = -75
+
+Ns1 = new NetStim()  // EPSP_1, 
+Ns1.start = 200
+Ns2 = new NetStim()  // EPSP_2, 
+Ns2.start = 300
+Ns1.number = Ns2.number = 1
+
+netcon = new NetCon(Ns1,syn1)
+netcon.weight = 0.005
+netconL.append(netcon)
+netcon = new NetCon(Ns2,syn1)
+netcon.weight = 0.0075
+netconL.append(netcon)
+
+pyr.collat[1] netcon = new NetCon(&v(1),syn2)
+netcon.weight = 0.0035
+netcon.delay = 1
+netconL.append(netcon)
+
+bask.soma netcon = new NetCon(&v(1),syn3)
+netcon.weight = 0.020
+netcon.delay = 1
+netconL.append(netcon)
+	
+objectvar axPulse //pulse generator in the proximal axonal collateral, pulses at 200 Hz
+pyr.collat axPulse = new Ipulse1(0.9)
+axPulse.amp=0.05 //nA
+axPulse.del=50
+axPulse.num=1e9
+axPulse.ton = 1 //ms
+axPulse.toff = 4 //ms
+
+access pyr.soma
+
+load_file("1PC_1IN_myelin.ses")

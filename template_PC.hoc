@@ -1,0 +1,494 @@
+begintemplate pyramidalCA1
+public init, topol, basic_shape, subsets, geom, biophys, geom_nseg, biophys_inhomo
+public synlist, x, y, z, position, x_index, y_index, rotateOY
+public connect2targetSoma, connect2targetCollat, connect2targetSomaSpikelet
+
+public soma, basal, shaft, apical, ais, axon, collat, axonal
+public all, level1, level2, level3, level4, level5, level6
+public level7, level8, level9, level10, level11
+public setcurrentbias_soma, setcurrentbias_AIS, reduceCa, setindexXY
+objref synlist
+
+proc init() {
+  topol()
+  subsets()
+  geom()
+  geom_nseg()
+  biophys()
+  reduceCa(0.5)
+  double_dend_cond()
+  synlist = new List()
+  synapses()
+  x = y = z = 0 // only change via position
+}
+
+create soma, basal[28], shaft, apical[34], ais, axon[3], collat[2]
+
+proc topol() { local i
+  for i = 0, 1 connect basal[i](0), soma(0)
+  for i = 2, 3 connect basal[i](0), soma(0)
+  for i = 4, 5 connect basal[i](0), basal(1)
+  for i = 6, 7 connect basal[i](0), basal[1](1)
+  for i = 8, 9 connect basal[i](0), basal[2](1)
+  for i = 10, 11 connect basal[i](0), basal[3](1)
+  for i = 12, 13 connect basal[i](0), basal[4](1)
+  for i = 14, 15 connect basal[i](0), basal[5](1)
+  for i = 16, 17 connect basal[i](0), basal[6](1)
+  for i = 18, 19 connect basal[i](0), basal[7](1)
+  for i = 20, 21 connect basal[i](0), basal[8](1)
+  for i = 22, 23 connect basal[i](0), basal[9](1)
+  for i = 24, 25 connect basal[i](0), basal[10](1)
+  for i = 26, 27 connect basal[i](0), basal[11](1)
+  connect shaft(0), soma(1)
+  for i = 0, 1 connect apical[i](0), shaft(1)
+  for i = 2, 3 connect apical[i](0), apical[i-2](1)
+  for i = 4, 5 connect apical[i](0), apical[i-4](1)
+  for i = 6, 7 connect apical[i](0), apical[4](1)
+  for i = 8, 9 connect apical[i](0), apical[5](1)
+  for i = 10, 11 connect apical[i](0), apical[6](1)
+  for i = 12, 13 connect apical[i](0), apical[7](1)
+  for i = 14, 15 connect apical[i](0), apical[8](1)
+  for i = 16, 17 connect apical[i](0), apical[9](1)
+  for i = 18, 19 connect apical[i](0), apical[11](1)
+  for i = 20, 21 connect apical[i](0), apical[13](1)
+  for i = 22, 23 connect apical[i](0), apical[15](1)
+  for i = 24, 25 connect apical[i](0), apical[17](1)
+  for i = 26, 33 connect apical[i](0), apical[i-8](1)
+  connect ais(0), soma(0)
+  connect axon(0), ais(1)
+  for i=1, 2 connect axon[i](0), axon[i-1](1)
+  connect collat[0](0), axon[0](1)
+  connect collat[1](0), axon[1](1)
+  basic_shape()
+}
+proc basic_shape() {
+  soma {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(0, 15, 0, 1)}
+  basal {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(-74, -44, 0, 1)}
+  basal[1] {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(-14, -59, 0, 1)}
+  basal[2] {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(14, -59, 0, 1)}
+  basal[3] {pt3dclear() pt3dadd(15, 0, 0, 1) pt3dadd(90, -44, 0, 1)}
+  basal[4] {pt3dclear() pt3dadd(-74, -44, 0, 1) pt3dadd(-119, -44, 0, 1)}
+  basal[5] {pt3dclear() pt3dadd(-74, -44, 0, 1) pt3dadd(-94, -89, 0, 1)}
+  basal[6] {pt3dclear() pt3dadd(-14, -59, 0, 1) pt3dadd(-29, -89, 0, 1)}
+  basal[7] {pt3dclear() pt3dadd(-14, -59, 0, 1) pt3dadd(0, -89, 0, 1)}
+  basal[8] {pt3dclear() pt3dadd(30, -59, 0, 1) pt3dadd(15, -89, 0, 1)}
+  basal[9] {pt3dclear() pt3dadd(30, -59, 0, 1) pt3dadd(45, -89, 0, 1)}
+  basal[10] {pt3dclear() pt3dadd(90, -44, 0, 1) pt3dadd(110, -89, 0, 1)}
+  basal[11] {pt3dclear() pt3dadd(90, -44, 0, 1) pt3dadd(135, -44, 0, 1)}
+  basal[12] {pt3dclear() pt3dadd(-119, -44, 0, 1) pt3dadd(-164, -14, 0, 1)}
+  basal[13] {pt3dclear() pt3dadd(-119, -44, 0, 1) pt3dadd(-164, -74, 0, 1)}
+  basal[14] {pt3dclear() pt3dadd(-89, -89, 0, 1) pt3dadd(-119, -104, 0, 1)}
+  basal[15] {pt3dclear() pt3dadd(-89, -89, 0, 1) pt3dadd(-89, -134, 0, 1)}
+  basal[16] {pt3dclear() pt3dadd(-29, -89, 0, 1) pt3dadd(-59, -104, 0, 1)}
+  basal[17] {pt3dclear() pt3dadd(-29, -89, 0, 1) pt3dadd(-29, -119, 0, 1)}
+  basal[18] {pt3dclear() pt3dadd(0, -89, 0, 1) pt3dadd(-5, -119, 0, 1)}
+  basal[19] {pt3dclear() pt3dadd(0, -89, 0, 1) pt3dadd(0, -119, 0, 1)}
+  basal[20] {pt3dclear() pt3dadd(15, -89, 0, 1) pt3dadd(15, -119, 0, 1)}
+  basal[21] {pt3dclear() pt3dadd(15, -89, 0, 1) pt3dadd(20, -119, 0, 1)}
+  basal[22] {pt3dclear() pt3dadd(45, -89, 0, 1) pt3dadd(45, -119, 0, 1)}
+  basal[23] {pt3dclear() pt3dadd(45, -89, 0, 1) pt3dadd(75, -104, 0, 1)}
+  basal[24] {pt3dclear() pt3dadd(105, -89, 0, 1) pt3dadd(105, -134, 0, 1)}
+  basal[25] {pt3dclear() pt3dadd(105, -89, 0, 1) pt3dadd(135, -104, 0, 1)}
+  basal[26] {pt3dclear() pt3dadd(135, -44, 0, 1) pt3dadd(180, -74, 0, 1)}
+  basal[27] {pt3dclear() pt3dadd(135, -44, 0, 1) pt3dadd(180, -14, 0, 1)}
+  shaft {pt3dclear() pt3dadd(15, 0, 0, 1) pt3dadd(15, 30, 0, 1)}
+  apical {pt3dclear() pt3dadd(15, 30, 0, 1) pt3dadd(-44, 60, 0, 1)}
+  apical[1] {pt3dclear() pt3dadd(15, 30, 0, 1) pt3dadd(75, 60, 0, 1)}
+  apical[2] {pt3dclear() pt3dadd(-44, 60, 0, 1) pt3dadd(-74, 90, 0, 1)}
+  apical[3] {pt3dclear() pt3dadd(75, 60, 0, 1) pt3dadd(105, 90, 0, 1)}
+  apical[4] {pt3dclear() pt3dadd(-44, 60, 0, 1) pt3dadd(-44, 105, 0, 1)}
+  apical[5] {pt3dclear() pt3dadd(75, 60, 0, 1) pt3dadd(75, 105, 0, 1)}
+  apical[6] {pt3dclear() pt3dadd(-44, 105, 0, 1) pt3dadd(-74, 135, 0, 1)}
+  apical[7] {pt3dclear() pt3dadd(-44, 105, 0, 1) pt3dadd(-29, 135, 0, 1)}
+  apical[8] {pt3dclear() pt3dadd(75, 105, 0, 1) pt3dadd(60, 135, 0, 1)}
+  apical[9] {pt3dclear() pt3dadd(75, 105, 0, 1) pt3dadd(105, 135, 0, 1)}
+  apical[10] {pt3dclear() pt3dadd(-74, 135, 0, 1) pt3dadd(-89, 165, 0, 1)}
+  apical[11] {pt3dclear() pt3dadd(-74, 135, 0, 1) pt3dadd(-74, 180, 0, 1)}
+  apical[12] {pt3dclear() pt3dadd(-29, 135, 0, 1) pt3dadd(0, 150, 0, 1)}
+  apical[13] {pt3dclear() pt3dadd(-29, 135, 0, 1) pt3dadd(-29, 180, 0, 1)}
+  apical[14] {pt3dclear() pt3dadd(60, 135, 0, 1) pt3dadd(30, 150, 0, 1)}
+  apical[15] {pt3dclear() pt3dadd(60, 135, 0, 1) pt3dadd(60, 180, 0, 1)}
+  apical[16] {pt3dclear() pt3dadd(105, 135, 0, 1) pt3dadd(120, 165, 0, 1)}
+  apical[17] {pt3dclear() pt3dadd(105, 135, 0, 1) pt3dadd(105, 180, 0, 1)}
+  apical[18] {pt3dclear() pt3dadd(-74, 180, 0, 1) pt3dadd(-89, 195, 0, 1)}
+  apical[19] {pt3dclear() pt3dadd(-74, 180, 0, 1) pt3dadd(-59, 195, 0, 1)}
+  apical[20] {pt3dclear() pt3dadd(-29, 180, 0, 1) pt3dadd(-44, 195, 0, 1)}
+  apical[21] {pt3dclear() pt3dadd(-29, 180, 0, 1) pt3dadd(-14, 195, 0, 1)}
+  apical[22] {pt3dclear() pt3dadd(60, 180, 0, 1) pt3dadd(45, 195, 0, 1)}
+  apical[23] {pt3dclear() pt3dadd(60, 180, 0, 1) pt3dadd(75, 195, 0, 1)}
+  apical[24] {pt3dclear() pt3dadd(105, 180, 0, 1) pt3dadd(90, 195, 0, 1)}
+  apical[25] {pt3dclear() pt3dadd(105, 180, 0, 1) pt3dadd(120, 195, 0, 1)}
+  apical[26] {pt3dclear() pt3dadd(-89, 195, 0, 1) pt3dadd(-89, 225, 0, 1)}
+  apical[27] {pt3dclear() pt3dadd(-59, 195, 0, 1) pt3dadd(-59, 225, 0, 1)}
+  apical[28] {pt3dclear() pt3dadd(-44, 195, 0, 1) pt3dadd(-44, 225, 0, 1)}
+  apical[29] {pt3dclear() pt3dadd(-14, 195, 0, 1) pt3dadd(-14, 225, 0, 1)}
+  apical[30] {pt3dclear() pt3dadd(45, 195, 0, 1) pt3dadd(45, 225, 0, 1)}
+  apical[31] {pt3dclear() pt3dadd(75, 195, 0, 1) pt3dadd(75, 225, 0, 1)}
+  apical[32] {pt3dclear() pt3dadd(90, 195, 0, 1) pt3dadd(90, 225, 0, 1)}
+  apical[33] {pt3dclear() pt3dadd(120, 195, 0, 1) pt3dadd(120, 225, 0, 1)}
+  ais {pt3dclear() pt3dadd(0, 0, 0, 1) pt3dadd(0, -44, 0, 1)}
+  axon[0] {pt3dclear() pt3dadd(0, -44, 0, 1) pt3dadd(0, -144, 0, 1)}
+  axon[1] {pt3dclear() pt3dadd(0, -144, 0, 1) pt3dadd(0, -244, 0, 1)}
+  axon[2] {pt3dclear() pt3dadd(0, -244, 0, 1) pt3dadd(0, -344, 0, 1)}
+  collat[0] {pt3dclear() pt3dadd(0, -144, 0, 1) pt3dadd(-200, -144, 0, 1)}
+  collat[1] {pt3dclear() pt3dadd(0, -244, 0, 1) pt3dadd(200, -244, 0, 1)}
+}
+
+objref all, level1, level2, level3, level4, level5, level6
+objref level7, level8, level9, level10, level11, soma_dendrites, dendrites, axonal
+proc subsets() { local i
+  objref all, level1, level2, level3, level4, level5, level6
+  objref level7, level8, level9, level10, level11
+  all = new SectionList()
+  soma_dendrites = new SectionList()
+  dendrites = new SectionList()
+  axonal = new SectionList()
+    soma { all.append() soma_dendrites.append() }
+    for i=0, 27 basal[i] { all.append() soma_dendrites.append() dendrites.append()}
+    shaft { all.append() soma_dendrites.append() dendrites.append()}
+    for i=0, 33 apical[i] {all.append() soma_dendrites.append() dendrites.append()}
+    
+	ais { all.append() axonal.append() }
+    for i=0, 2 axon[i] { all.append() axonal.append() }
+	for i=0, 1 collat[i] { all.append() axonal.append() }
+
+  level1 = new SectionList()
+    for i=12, 27 basal[i] { level1.append() }
+
+  level2 = new SectionList()
+    for i=4, 11 basal[i] { level2.append() }
+
+  level3 = new SectionList()
+    for i=0, 3 basal[i] { level3.append() }
+
+  level4 = new SectionList()
+    soma { level4.append() }
+
+  level5 = new SectionList()
+    { shaft level5.append() }
+
+  level6 = new SectionList()
+    for i=0, 1 apical[i] { level6.append() }
+
+  level7 = new SectionList()
+    for i=2, 5 apical[i] { level7.append() }
+
+  level8 = new SectionList()
+    for i=6, 9 apical[i] { level8.append() }
+
+  level9 = new SectionList()
+    for i=10, 17 apical[i] { level9.append() }
+
+  level10 = new SectionList()
+    for i=18, 25 apical[i] { level10.append() }
+
+  level11 = new SectionList()
+    for i=26, 33 apical[i] { level11.append() }
+
+}
+proc geom() {
+  forsec level1 {  L = 70  diam = 2  }
+  forsec level2 {  L = 40  diam = 3.14  }
+  forsec level3 {  L = 15  diam = 5  }
+  forsec level4 {  L = 25.5  diam = 30  }
+  forsec level5 {  L = 50  diam = 10  }
+  forsec level6 {  L = 50  diam = 6.3  }
+  forsec level7 {  L = 50  diam = 5  }
+  for i=2, 3 apical[i] { L = 70 diam = 2.78 } // oblique, level 7
+  forsec level8 {  L = 60  diam = 3.14  }
+  forsec level9 {  L = 60  diam = 2.5  }
+  apical[10] { L = 50 diam = 1.4 } //oblique, level 9
+  apical[12] { L = 50 diam = 1.4 } //oblique, level 9
+  apical[14] { L = 50 diam = 1.4 } //oblique, level 9
+  apical[16] { L = 50 diam = 1.4 } //oblique, level 9
+  forsec level10 {  L = 60  diam = 1.6  }
+  forsec level11 {  L = 60  diam = 1.6  }
+  ais {  L = 40 diam = 2 }
+  axon[0] {  L = 10  diam = 1  }
+  axon[1] {  L = 100  diam = 1  }
+  axon[2] {  L = 100  diam = 1  }
+  for i=0, 1 collat[i] {  L = 200  diam = 0.5  }
+}
+external lambda_f
+proc geom_nseg() {
+  forsec all { nseg = int((L/(0.1*lambda_f(100))+.9)/2)*2 + 1  }
+}
+// apply the biophysical properties of Traub et al 2005 model to the cell
+// $o1 is the cell
+proc biophys(){
+    forsec all { 
+	   insert pas 
+	   cm = 0.75
+	}   
+	forsec soma_dendrites {
+	    g_pas =   2.E-05
+        Ra =   200.
+	}
+	forsec axonal {
+       g_pas =   0.001 
+       Ra =   100.
+	}
+    forsec axonal { 
+       insert NaFax
+	   gbar_NaFax =   0.300 
+       insert Kdrax
+       gbar_Kdrax =   0.400
+    }
+	soma { 
+       insert NaFsd
+	   gbar_NaFsd =   0.070 
+       insert Kdrsd
+       gbar_Kdrsd =   0.170
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 24
+	   beta_Cad = 0.001
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.020
+	   insert Ka
+	   gbar_Ka = 0.0005
+	   }
+	forsec level1 { // distal basal dend
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 148
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.004
+	   }
+    forsec level2 { // middle basal dend
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 164
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.004
+	   insert Ka
+	   gbar_Ka = 0.0005
+	   }
+    forsec level3 { // proximal basal dend
+       insert NaFsd
+	   gbar_NaFsd =   0.001
+       insert Kdrsd
+       gbar_Kdrsd =   0.015
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 123
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.008
+	   insert Ka
+	   gbar_Ka = 0.0005
+	   }
+ // level4 is soma
+ // level5 is shaft
+    shaft { 
+       insert NaFsd
+	   gbar_NaFsd =   0.003
+       insert Kdrsd
+       gbar_Kdrsd =   0.020
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 18
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.008
+	   insert Ka
+	   gbar_Ka = 0.0005
+	   }
+    forsec level6 {
+       insert NaFsd
+	   gbar_NaFsd =   0.003
+       insert Kdrsd
+       gbar_Kdrsd =   0.020
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 29
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.008
+	   insert Ka
+	   gbar_Ka = 0.0005
+	   }
+	forsec level7 {
+	   insert Ca
+	   gbar_Ca = 0.002
+	   insert Cad
+	   phi_Cad = 37
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.004
+	   }
+	forsec level8 {
+	   insert Ca
+	   gbar_Ca = 0.003
+	   insert Cad
+	   phi_Cad = 13
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.012
+	   }
+	forsec level9 {
+	   insert Ca
+	   gbar_Ca = 0.003
+	   insert Cad
+	   phi_Cad = 16
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.012
+	   }
+	forsec level10 {
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 25
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.004
+	   }
+	forsec level11 {
+	   insert Ca
+	   gbar_Ca = 0.001
+	   insert Cad
+	   phi_Cad = 25
+	   beta_Cad = 0.05
+	   insert Kahp
+	   gbar_Kahp = 0.0008
+	   insert Kc
+	   gbar_Kc = 0.004
+	   }
+// reversal potentials
+	forsec axonal {
+       ek =  -90.
+       e_pas =  -65.
+       ena =   50.
+	}
+	forsec soma_dendrites {
+       ek =  -80.
+       e_pas = -65.
+       if (ismembrane("NaFsd")) { ena =   50. }
+	}
+	forall { 
+		insert extracellular
+		xraxial =  1e+09
+		xraxial[1] =  1e+09
+		xg = 1e+09
+		xg[1] = 1e+09
+		xc = 0
+		xc[1] = 0
+		e_extracellular = 0 
+	}
+}
+proc biophys_inhomo(){}
+proc position() { local i
+  soma for i = 0, n3d()-1 {
+    pt3dchange(i, $1-x+x3d(i), $2-y+y3d(i), $3-z+z3d(i), diam3d(i))
+  }
+  x = $1  y = $2  z = $3
+}
+obfunc connect2target() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  soma nc = new NetCon(&v(1), $o1)
+  nc.threshold = 10
+  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+  return nc
+}
+proc synapses() {}
+
+// adds steady current to soma
+// $1 is the current in nA, "-" for hyperpolarizing, "+" for depolarizing
+proc setcurrentbias_soma(){ local i, area_soma 
+ soma { 
+      area_soma = PI*diam*L*1e-8  // unts converted [mcm2->cm2], area_soma is the area of a soma membrane
+      if (ismembrane("bias")!=1) {insert bias}
+	  amp_bias = -$1*1e-6/area_soma //note conversion [nA->mA] by 1e-6 and change of sign
+    }
+}
+
+proc setcurrentbias_AIS(){ local i, area_section 
+ ais { 
+      area_section = PI*diam*L*1e-8  // unts converted [mcm2->cm2], area_section is the area of a section membrane
+      if (ismembrane("bias")!=1) {insert bias}
+	  amp_bias = -$1*1e-6/area_section //note conversion [nA->mA] by 1e-6 and change of sign
+    }
+}
+
+proc double_dend_cond() {
+   spine_area_multiplier = 2.0
+   forsec dendrites {
+        if (ismembrane("NaFsd")) { gbar_NaFsd *= spine_area_multiplier }
+        if (ismembrane("Kc")) { gbar_Kc *= spine_area_multiplier }
+        if (ismembrane("Kdrsd")) { gbar_Kdrsd *= spine_area_multiplier }
+        if (ismembrane("Ka")) { gbar_Ka *= spine_area_multiplier }
+		if (ismembrane("Kahp")) { gbar_Kahp *= spine_area_multiplier }
+        if (ismembrane("Ca")) { gbar_Ca *= spine_area_multiplier }
+        if (ismembrane("pas")) { g_pas *= spine_area_multiplier }
+        cm = cm * spine_area_multiplier
+   }
+ }
+proc reduceCa() {
+	forsec all {
+		if (ismembrane("Ca")) { gbar_Ca *= $1 }
+	}
+}
+
+proc setindexXY() {
+	x_index = $1
+	y_index = $2
+}
+obfunc connect2targetSoma() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  soma nc = new NetCon(&v(1), $o1)
+  nc.threshold = -10
+  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+  return nc
+}
+obfunc connect2targetSomaSpikelet() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  soma nc = new NetCon(&v(1), $o1)
+  nc.threshold = -55
+  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+  return nc
+}
+
+obfunc connect2targetCollat() { localobj nc //$o1 target point process, optional $o2 returned NetCon
+  collat[0] nc = new NetCon(&v(1), $o1)
+  nc.threshold = 0
+  if (numarg() == 2) { $o2 = nc } // for backward compatibility
+  return nc
+}
+
+proc rotateOY(){ local alpha, i, xcenter, zcenter
+// rotate cell along axis OY (vertical), argument in radians
+	alpha = $1
+	soma { xcenter = x3d(0)	zcenter = z3d(0) }
+	forsec all {
+	for i = 0, n3d()-1 {
+		pt3dchange(i, xcenter + (x3d(i) - xcenter)*cos(alpha) - (z3d(i) - zcenter)*sin(alpha), y3d(i), zcenter + (x3d(i) - xcenter)*sin(alpha) + (z3d(i) - zcenter)*cos(alpha), diam3d(i))
+    }
+	}
+}
+endtemplate pyramidalCA1

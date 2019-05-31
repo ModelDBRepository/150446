@@ -1,0 +1,69 @@
+// This model shows that small somatic depolarization can switch silent cell to a firing one.
+load_file("nrngui.hoc")
+load_file("template_PC.hoc")
+load_file("template_IN.hoc")
+
+objref pyr, bask, synP2B, synB2P, synConL, netcon
+pyr = new pyramidalCA1()
+
+pyr.ais { L = 40 diam = 2 }
+pyr.axon[0] { L = 10 }
+pyr.axon[1] {  L = 100 }
+pyr.axon[2] {  L = 100 }
+pyr.geom_nseg() 
+forsec pyr.axonal { nseg *= 9 }
+
+pyr.soma { 
+	gbar_NaFsd =   0.070 
+	gbar_Kdrsd =   0.170
+	}
+forsec pyr.axonal { //including AIS, changed 20.09.2012
+		gbar_NaFax = 0.300 
+		gbar_Kdrax = 0.400
+		}
+pyr.setcurrentbias_soma(-0.01)
+pyr.setcurrentbias_AIS(-0.10)
+
+bask = new basket()
+bask.position(200,0,0)
+
+forall { 
+	insert extracellular
+	xraxial =  1e+09
+	xraxial[1] =  1e+09
+	xg = 1e+09
+	xg[1] = 1e+09
+	xc = 0
+	xc[1] = 0
+	e_extracellular = 0 
+	}
+	
+bask.soma synP2B = new AlphaSyn(0.5)
+synP2B.tau = 0.8 // 0.8, Traub et al 2005, AMPA pyr->FS
+
+synConL = new List()
+pyr.collat[1] netcon = new NetCon(&v(1),synP2B)
+netcon.weight = 0.0035
+netcon.delay = 1
+synConL.append(netcon)
+
+pyr.soma synB2P = new Exp2Syn(0.5)
+synB2P.tau1 = 2
+synB2P.tau2 = 5
+synB2P.e = -75
+bask.soma netcon = new NetCon(&v(1),synB2P)
+netcon.weight = 0.040
+netcon.delay = 1
+synConL.append(netcon)
+	
+objectvar axPulse
+pyr.collat axPulse = new Ipulse1(0.9)
+axPulse.amp=0.035
+axPulse.del=100
+axPulse.num=1
+axPulse.ton = 100
+axPulse.toff = 4
+
+access pyr.soma
+
+load_file("Silent2Place.ses")

@@ -1,0 +1,73 @@
+// Model of synaptic gating of axonal spikes, using 1 pyramidal cell (PC) synaptically connected with 1 basket cell (IN)
+// PC receives two EPSPs, at 100 and 200 ms, in its apical dendrite. The EPSPs trigger spike propagation from the proximal axon collateral (which is tonically active at 200 Hz) 
+// into the main axon. The spikes from collateral start to propagate to the PC soma (seen as burst of spikelets and one spike), and to the downstream target of the PC (basket cell).
+// The basket cell feeds back to PC soma and inhibits further spiking, thus shutting off spike propagation from proximal axon to the main axon.
+// author: Nikita Vladimirov, PhD <nikita.vladimirov@gmail.com>
+load_file("nrngui.hoc")
+load_file("template_PC.hoc")
+load_file("template_IN.hoc")
+
+objref pyr, bask
+objref syn1, syn2, syn3
+objref Ns1, Ns2, netcon, netconL
+pyr = new pyramidalCA1()
+bask = new basket()
+netconL = new List()
+
+forsec pyr.axonal { nseg *= 9 }
+pyr.setcurrentbias_soma(-0.05)
+pyr.setcurrentbias_AIS(-0.10)
+pyr.position(0,0,0)
+bask.position(200,0,0)
+// recording extracellular electrode coordinates, near PC soma:
+Ex = 20
+Ey = 20
+Ez = 0
+
+pyr.shaft syn1 = new AlphaSyn(0.5) // external-> PC dendrite
+syn1.tau = 2
+syn1.e = 0
+
+bask.soma syn2 = new AlphaSyn(0.5) // PC axon (distal collateral) -> basket cell
+syn2.tau = 0.8 
+
+pyr.soma syn3 = new Exp2Syn(0.5) // basket cell -> PC soma
+syn3.tau1 = 2
+syn3.tau2 = 5
+syn3.e = -75
+
+Ns1 = new NetStim()  // EPSP_1, 2.5 nS
+Ns1.start = 100
+Ns2 = new NetStim()  // EPSP_2, 5 nS
+Ns2.start = 200
+Ns1.number = Ns2.number = 1
+
+netcon = new NetCon(Ns1,syn1)
+netcon.weight = 0.0025
+netconL.append(netcon)
+netcon = new NetCon(Ns2,syn1)
+netcon.weight = 0.005
+netconL.append(netcon)
+
+pyr.collat[1] netcon = new NetCon(&v(1),syn2)
+netcon.weight = 0.0035
+netcon.delay = 1
+netconL.append(netcon)
+
+bask.soma netcon = new NetCon(&v(1),syn3)
+netcon.weight = 0.050
+netcon.delay = 1
+netconL.append(netcon)
+	
+objectvar axPulse //pulse generator in the proximal axonal collateral, pulses at 200 Hz
+pyr.collat axPulse = new Ipulse1(0.9)
+axPulse.amp=0.05 //nA
+axPulse.del=50
+axPulse.num=1e9
+axPulse.ton = 1 //ms
+axPulse.toff = 4 //ms
+
+access pyr.soma
+
+load_file("LFP.hoc")
+load_file("1PC_1IN.ses")

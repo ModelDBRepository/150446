@@ -1,0 +1,265 @@
+// Model of 16 pyramidal cells (PCs) and 1 basket cell (IN) which shows a putative mechanism of cell replay during a sharp-wave ripple.
+// Proximal axonal collaterals of all PCs are connected by gap junctions and stimulated by current pulses at about 100 Hz (stim_interval_percell = 10 ms).
+// This creates synchronous spikes in the plexus of axonal collaterals, at nearly 200 Hz, which is hidden (not seen at somata and main axons).
+// An afferent EPSP in PC(0) unmasks the hidden axonal activity, which makes PC(0) to burst.
+// Bursting of PC(0) initiates a replay: PC(0)->PC(1)->PC(2) guided by two excitatory synapses (->) between the cells. The replay is triggered and guided by EPSPs, 
+// but temporally driven by synchronous spiking of the axonal collaterals.
+// author: Nikita Vladimirov, PhD <nikita.vladimirov@gmail.com>
+
+load_file("nrngui.hoc")
+load_file("template_PC.hoc")
+load_file("template_IN.hoc")
+load_file("gap_collat.hoc")
+
+Nx=4
+Ny=4
+ncells=Nx*Ny
+nbaskets = 1
+gj_per_cell = 3
+gj_radius_x = gj_radius_y = 4
+gj_pos_random = 1 //0 if gjs positioned at 0.5, 1 if gjs positioned random(0,1)
+gj_pos=0.5 // used if gj_pos_random=0
+gj_pos_min = 0.25
+gj_pos_max = 0.75
+gj_conductance = 3e-3 //[uS]
+stim_interval_percell = 10 // [ms], mean interstimulus interval, per cell
+// random number seeds:
+stim_seed = 2 // seed for axonal stimulation times
+gj_radius_seed = 3 // seed for connecting gap junctions
+gj_pos_seed = 4 // seed for gap junctions on the collateral
+// synaptic weights:
+wsyn_2PC = 0.005 //afferent->pyr
+wsyn_PC2PC = 0.005 // pyr->pyr
+wsyn_PC2IN = 0.0035 //pyr->bask
+wsyn_IN2PC = 0.040 //bask->pyr
+objref cells, baskets, gaps
+objref NetConL, IN2PCsynL, PC2INsynL, PC2PCsynL
+objref IpulseL, RandNetStimL, CA3NetStim
+PC2PCsynL = new List()
+PC2INsynL = new List()
+IN2PCsynL = new List()
+NetConL = new List()
+IpulseL = new List()
+RandNetStimL = new List()
+CA3NetStim = new NetStim()
+// coordinates of the extracellular electrode (um):
+Ex = 60
+Ey = 20
+Ez = 60
+//////////////////// procedures and functions //////////////////////	
+proc mkPCs(){ local i localobj pyr
+// $1 is the total number of pyramidal cells
+   cells=new List() //pyramidal cells
+   for i=0,$1-1{
+    pyr = new pyramidalCA1()
+	forsec pyr.axonal { nseg *= 9 }
+	pyr.setcurrentbias_soma(-0.05)
+	pyr.setcurrentbias_AIS(-0.1)
+	cells.append(pyr)
+   }
+}
+
+proc mkbaskets(){ local i localobj cell_
+// $1 is the total number of basket cells
+   baskets = new List()
+   for i=0,$1-1{
+     cell_ = new basket()
+	 baskets.append(cell_)
+   }
+}
+
+proc setpositions(){ local i, x, y, x_index, y_index
+  for i=1,cells.count(){
+	x_index =(i-1)%Nx+1
+	x = (x_index-1)*40
+	y_index =(i-x_index)/Nx+1
+	y = (y_index-1)*40
+	cells.object(i-1).position(x,0,y)
+	cells.object(i-1).setindexXY(x_index,y_index)
+  }
+  baskets.o(0).position(-40,0,-40) 
+}
+
+proc rotateRandOY(){ local i, choices localobj rand
+	choices = 4
+	rand = new Random()
+	rand.discunif( 0, choices - 1 )
+	for i=0,cells.count()-1 {
+		cells.o(i).rotateOY(2*PI*rand.repick()/choices)
+	}
+}
+
+obfunc shuffle(){ local n, rand_ind, a localobj rand, shuff
+  rand=new Random()
+  shuff=new Vector($o1.size(),0)
+  for (n=0; n<=$o1.size()-1;n=n+1){
+   shuff.x[n]=$o1.x[n]
+  }
+  for (n=$o1.size(); n>1; n=n-1){
+   rand_ind=rand.discunif(0,n-1)
+   a=shuff.x[n-1]
+   shuff.x[n-1]=shuff.x[rand_ind]
+   shuff.x[rand_ind]=a
+   }
+  return shuff
+}
+
+func round() { return int($1+0.5) }
+
+/////////////// Connect the cells into a network by gap junctions ///////////////
+proc connect_gj(){ local i, i_gj, icell, xi, yi, xj, yj, n1, n2, attempt, check1, check2, pos1, pos2 localobj cell_gids, cell_gids_shuffled, gap_, stubs, rand2, rand3, gj_table
+ngaps=int(ncells*gj_per_cell/2)
+stubs=new Vector(ncells+1)// Fortan-style indexing, 1..ncells
+gj_table=new Matrix(ngaps+1,2)
+rand2=new Random(gj_radius_seed)
+rand3=new Random(gj_pos_seed)
+rand2.discunif(-gj_radius_x,gj_radius_x)
+rand3.uniform(0,1)
+stubs.fill(gj_per_cell) //regular
+stubs.x[0]=0 // fortran legacy
+
+gaps=new List()
+cell_gids=new Vector(cells.count())
+cell_gids.indgen(1,cells.count(),1)
+cell_gids_shuffled=shuffle(cell_gids)
+
+i_gj=0
+for i=0,cells.count()-1{
+  icell=cell_gids_shuffled.x[i]// icell=1..ncells, Fortran style
+  xi=cells.object(icell-1).x_index
+  yi=cells.object(icell-1).y_index
+  while(stubs.x[icell]>0) {
+       xj=xi+rand2.repick()
+       yj=yi+rand2.repick()
+       n1=icell
+       n2=Nx*(yj-1)+xj
+       attempt=0
+       check1=((xj<1)||(yj<1)||(xj>Nx)||(yj>Ny)||((xj==xi)&&(yj==yi)))
+	   if(check1==0){ //if cell is within range, try its free stubs
+			check2=(stubs.x[n2]==0)
+		}
+       while ((check1 || check2) && (attempt<1000)){
+	       attempt=attempt+1
+           xj=xi+rand2.repick()
+           yj=yi+rand2.repick() 
+		   n2=Nx*(yj-1)+xj	
+	       check1=((xj<1)||(yj<1)||(xj>Nx)||(yj>Ny)||((xj==xi)&&(yj==yi)))
+	     if(check1==0){ //if cell is within range, try its free stubs
+	       check2=(stubs.x[n2]==0)
+	     }
+	   }
+	   if(attempt<1000 && i_gj<ngaps) {
+ 	     i_gj=i_gj+1
+         gj_table.x[i_gj][0]=n1
+         gj_table.x[i_gj][1]=n2
+		 if(gj_pos_random == 1){
+		   pos1 = rand3.uniform(gj_pos_min,gj_pos_max)
+		   pos2 = rand3.uniform(gj_pos_min,gj_pos_max)
+		   } else {
+			pos1 = gj_pos
+			pos2 = gj_pos
+		   }
+		 gap_=new gapjunction(cells.object(n1-1),0,cells.object(n2-1),0,gj_conductance,pos1,pos2)
+		 gaps.append(gap_)
+		 stubs.x[n1]=stubs.x[n1]-1
+         stubs.x[n2]=stubs.x[n2]-1
+	   } else {
+	     stubs.x[icell]=0
+	   }
+    }
+  }
+}
+
+proc connectPCs_to_IN() { local j localobj syn, netcon
+	for j = 0, cells.count()-1 {
+			baskets.o(0).soma syn = new AlphaSyn(0.5)
+			syn.tau = 0.8 
+			cells.o(j).collat[1] netcon = new NetCon(&v(1),syn)
+			netcon.weight = wsyn_PC2IN
+			netcon.delay = 1
+			NetConL.append(netcon)
+			PC2INsynL.append(syn)
+			}
+}
+
+proc connectIN_to_PCs() { local j localobj syn, netcon
+		for j = 0, cells.count()-1 {
+			cells.o(j).soma syn = new Exp2Syn(0.5)
+			syn.tau1 = 2
+			syn.tau2 = 5
+			syn.e = -75
+			baskets.o(0).soma netcon = new NetCon(&v(1),syn)
+			netcon.weight = wsyn_IN2PC
+			netcon.delay = 1
+			NetConL.append(netcon)
+			IN2PCsynL.append(syn)
+			}
+}
+
+proc connectPC_to_PC() { local i localobj syn, netcon
+// $1 is pre-synaptic, $2 is post-synaptic cell
+		 cells.o($2).basal[4] syn=new AlphaSyn(0.5)
+		 syn.tau = 2 //ms
+		 cells.o($1).collat[1] netcon = new NetCon(&v(1),syn)
+		 netcon.weight = $3
+		 netcon.delay = 1
+		 PC2PCsynL.append(syn)
+		 NetConL.append(netcon)
+}
+
+
+proc cueEPSP() { local i localobj syn, netcon
+		CA3NetStim.interval = 200
+		CA3NetStim.number = 1 // 
+		CA3NetStim.start = 20
+		CA3NetStim.noise = 0 // 0 for deterministic, 1 for negexp
+		cells.o(0).shaft syn = new AlphaSyn(0.5)
+		syn.tau = 2
+		netcon = new NetCon(CA3NetStim,syn)
+		netcon.weight = wsyn_2PC
+		netcon.delay = 1
+		PC2PCsynL.append(syn)
+		NetConL.append(netcon)
+}
+
+proc stim_all_collat_random() { local i localobj pulse_, netstim_, netcon_
+ for i = 0, cells.count()-1 {
+	cells.o(i).collat {
+		pulse_ = new Ipulse3(0.9)
+		pulse_.dur = 1
+		pulse_.amp = 0.05
+		netstim_ = new NetStim()
+		netstim_.interval = stim_interval_percell
+		netstim_.number = 1e9 // essentially unlimited
+		netstim_.start = 5
+		netstim_.noise = 0.5 // 0 for deterministic, 1 for negexp
+		netstim_.seed(i+stim_seed)
+		netcon_ = new NetCon(netstim_,pulse_)
+		netcon_.threshold = 0
+		netcon_.weight = 1
+		netcon_.delay = 0
+		IpulseL.append(pulse_)
+		RandNetStimL.append(netstim_)
+		NetConL.append(netcon_)
+		}
+ }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////   execution   /////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+mkPCs(ncells)
+mkbaskets(nbaskets)
+setpositions()
+rotateRandOY()
+connect_gj()
+connectPCs_to_IN()
+connectIN_to_PCs()
+cueEPSP() //the afferent EPSP to PC(0), which triggers the SPW-R with replay
+connectPC_to_PC(0,1,wsyn_PC2PC) 
+connectPC_to_PC(1,2,wsyn_PC2PC) 
+stim_all_collat_random()
+
+load_file("LFP.hoc")
+load_file("16PC_1IN.ses")
